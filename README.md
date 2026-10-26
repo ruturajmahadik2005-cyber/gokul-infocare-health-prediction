@@ -1,11 +1,11 @@
 # Gokul Infocare · Patient Health Records
 
-A small Python + Flask application for managing the blood test information required in Task 2. It stores records in SQLite, validates inputs, provides create/read/update/delete actions, and can request cautious educational remarks from a configurable external AI API.
+A Python and Flask coursework app for the Task 2 patient blood-test scenario. It provides validated create, read, update and delete actions, SQLite persistence, and optional AI-generated educational screening remarks.
 
 ## Run locally
 
 1. Install Python 3.10 or later.
-2. In this folder, create and activate a virtual environment:
+2. In PowerShell, create and activate a virtual environment, then install dependencies:
 
    ```powershell
    py -m venv .venv
@@ -13,53 +13,47 @@ A small Python + Flask application for managing the blood test information requi
    pip install -r requirements.txt
    ```
 
-3. Copy `.env.example` to `.env`. Keep `AI_API_KEY` blank for offline remarks, or add your own API key locally. Do not commit `.env`.
-4. Start the app:
+3. Copy `.env.example` to `.env`. For the Gemini free tier, set `AI_PROVIDER=gemini` and put your Google AI Studio key after `GEMINI_API_KEY=`. Keep `.env` private and never commit it. AI provider quotas and availability can change; without a working API key, the app still runs and displays a clear no-prediction message.
+4. Start the app with `python app.py` and open http://127.0.0.1:5000.
 
-   ```powershell
-   python app.py
-   ```
-
-5. Open http://127.0.0.1:5000.
-
-SQLite creates `patients.db` the first time the app runs. `DATABASE_PATH` can point to another local path. The built-in remarks clearly state when AI is not configured or unavailable.
+SQLite creates `patients.db` on first run. Both `.env` and database files are excluded from Git by `.gitignore`.
 
 ## Assignment test data
 
-Choose **Load assignment test cases** to attempt the ten supplied rows. Original names, dates, emails and measurements are retained. Date separators are interpreted for validation only because the assignment table uses dots while the requested form format is `dd/mm/yyyy`.
+Choose **Load assignment test cases** once from an empty database. The importer preserves the supplied values and reports validation results without silently correcting the source rows. Test cases #1, #3, #5, #7, #9 and #10 are valid unique records. Test #2 has an incomplete email, #4 has an impossible date (31.11.2001), and #8 has a future date and malformed email. Test #6 duplicates test #1 and is skipped by the case-insensitive unique-email rule.
 
-Valid rows are stored. Invalid data is not silently corrected: the app reports each test number and its reason. Repeating the import reports the duplicate email and skips it. Test 6 duplicates test 1; test 2 has an incomplete email domain; test 4 has an impossible date; test 8 has a future birth date and malformed email. The initial demonstration state in this workspace has Prem Kumar's email changed to `gokul@infocare.com` and Tenille Singh deleted. The final five saved records can be reviewed on startup. To repeat the full demo from a clean database, stop the app, move or remove the local `patients.db`, restart, and choose **Load assignment test cases**; then perform the two actions using the row menus. The import does not modify source data.
+Avoid reloading after editing or deleting assignment records: a changed email can allow its original source row to be imported again. To start a fresh demonstration, stop the app and move the local `patients.db` out of the project folder, restart the app, and load the test cases once. The assignment source data is not changed by the importer.
 
 ## Validation and record behavior
 
 - Names must contain 2–100 characters.
-- Birth dates must be real dates in `dd/mm/yyyy` format and cannot be in the future.
-- Email addresses need a simple local-part, `@`, and domain with a dot.
+- Dates must be real dates in `dd/mm/yyyy` format and cannot be in the future.
+- Email addresses must have a local part and a dotted domain.
 - Glucose, haemoglobin and cholesterol must be numeric and within broad positive input bounds.
-- Email is unique (case-insensitive), so exact duplicates are rejected clearly.
-- Every database write uses parameterized SQL. AI network failures do not prevent local record creation/update.
+- Email addresses are unique without regard to case.
+- Database writes use parameterized SQL. AI API failures do not prevent local record creation or updates.
 
 ## AI integration and health limits
 
-The app defaults to the Gemini Developer API. Create a free-tier key in Google AI Studio and set `GEMINI_API_KEY` in the untracked `.env` file. The default model is `gemini-3.8-flash`; free-tier quota and model availability are controlled by Google and can change. Set `AI_PROVIDER=openai` to use the optional OpenAI-compatible integration instead; that requires OpenAI API billing/credits.
+The app defaults to Google's Gemini Developer API using `gemini-3.8-flash`. The external request sends only glucose, haemoglobin and cholesterol; it does not send the patient's name, date of birth or email. Configure `GEMINI_API_KEY` locally in `.env`. The free tier has model and usage limits, which may change, and Google may use free-tier prompts to improve its products. Do not submit identifiable or real patient health data without appropriate consent.
 
-The app sends only the three numeric test values to the selected provider, not the patient's name, date of birth or email. On Google's free tier, submitted content may be used to improve its products; do not send identifiable or real patient health data without appropriate consent. The prompt asks for a limited educational screening observation and possible concern while prohibiting diagnoses, probabilities and treatment claims. Units, fasting status and lab reference ranges are not collected, so any note is limited and is not a diagnostic or clinical decision tool. Every returned remark includes a clinician-review disclaimer.
+The prompt requests a cautious educational screening observation and possible health concern, not a diagnosis, probability or treatment recommendation. Units, fasting status and laboratory reference ranges are not collected, so the result is limited and not a diagnostic or clinical decision tool. Every AI remark includes a clinician-review disclaimer. An OpenAI-compatible provider is also supported by setting `AI_PROVIDER=openai` and its credentials in `.env`; OpenAI API billing is separate from ChatGPT subscriptions.
 
 ## Code walkthrough
 
-- `app.py`: Flask routes, SQLite schema, validation, test-case importer, AI API request and error handling.
-- `templates/index.html`: patient entry form, records table, edit dialog and status feedback.
+- `app.py`: Flask routes, SQLite schema, validation, assignment importer, AI API calls and error handling.
+- `templates/index.html`: entry form, records table, edit dialog and status messages.
 - `static/style.css`: responsive visual design.
 - `.env.example`: configuration names only; it contains no credentials.
 
-## Video walkthrough plan (record locally)
+## Video walkthrough plan
 
-1. Introduce the app and show the clean empty state and entry form.
-2. Load the assignment test cases. Explain the accepted rows and why #2 (email), #4 (impossible date), and #8 (future date and malformed email) fail validation. Explain #6 is an exact duplicate of #1 and is skipped by the unique-email rule. Re-import once to demonstrate duplicate handling.
-3. Show all persisted records and explain validation, SQLite persistence, and the cautious AI remarks/offline message.
-4. Edit one accepted record's email to `gokul@infocare.com`; save and show the updated row.
-5. Delete one accepted record, confirm, and show the refreshed list.
-6. Walk through `validate()`, `ai_remarks()`, and the CRUD routes in `app.py`. Show `.env.example`, making clear that actual keys stay local and are not part of the GitHub repository.
-7. Close by stating that remarks are educational and not medical advice.
+1. Show the empty state and entry form.
+2. Load the assignment rows once. Explain the errors in #2, #4 and #8, and the duplicate #6.
+3. Show the six valid unique records and an AI remark. Explain the SQLite storage and validation.
+4. Edit one valid record's email to `gokul@infocare.com` and show the saved row.
+5. Delete one record and show the updated list.
+6. Walk through `validate()`, `ai_remarks()` and the CRUD routes. Show `.env.example`, not `.env` or any API key.
+7. State that remarks are educational only and not medical advice.
 
-Before sharing a GitHub URL or video, create and verify them yourself. This workspace does not claim a repository has been uploaded or a video recorded.
+Before recording, reset the demo database and load the assignment rows once. Do not reload after editing or deleting. Submit the candidate details, GitHub repository link and video link together in one email as requested by the assignment.
